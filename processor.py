@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-import math
 import os
+
 
 class Processor:
     def __init__(self, path):
@@ -17,19 +17,6 @@ class Processor:
         im = cv2.imread(im_path)
         im_gray = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
         return im_gray
-
-    def euclidean(self, mat1, mat2):
-        mat1 = mat1.reshape(1, -1)
-        mat2 = mat2.reshape(1, -1)
-        dif = mat1 - mat2
-        euc = math.sqrt(np.dot(dif, dif.T)[0][0])
-        return euc
-
-    def cos_simi(self, mat1, mat2):
-        mat1 = mat1.reshape(1, -1)
-        mat2 = mat2.reshape(1, -1)
-        cos = (np.dot(mat1, mat2.T)[0][0])/(math.sqrt(np.dot(mat1, mat1.T)[0][0])*math.sqrt(np.dot(mat2, mat2.T)[0][0]))
-        return cos
 
     def get_feature_sift(self, im):
         sift = cv2.xfeatures2d.SIFT_create()
@@ -51,8 +38,8 @@ class Processor:
     def get_all_features(self):
         self.get_im_path()
         # all_features = np.zeros((2, 128))
-        for i in range(10):
-        #for i in range(len(self.path_list)):
+        #for i in range(100):
+        for i in range(len(self.path_list)):
             im_gray = self.load_im(self.path_list[i])
             kps, features = self.get_feature_sift(im_gray)
             # print(features.shape[0])
@@ -64,9 +51,12 @@ class Processor:
         self.all_features = self.all_features[2:]
         print(self.all_features.shape)
         print(self.features_num)
+        np.save('all_features.npy', self.all_features)
 
     def bow(self):
         self.get_all_features()
+        # self.all_features = np.load('all_features.npy')
+        print(self.all_features)
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TermCriteria_MAX_ITER, 20, 0.5)
         flags = cv2.KMEANS_RANDOM_CENTERS
         compactness, labels, centers = cv2.kmeans(self.all_features, self.K, None, criteria, 10, flags)
@@ -81,15 +71,23 @@ class Processor:
             index = index + self.features_num[i]
             for j in range(self.K):
                 features_after_bow[i][j] = sum(sum(labels_i == j))
+        # np.save('features_after_bow.npy', features_after_bow)
         return features_after_bow
 
-
-
-
-
-
-
-
+    def tf_idf(self, features):
+        tf = np.zeros(shape=features.shape)
+        idf = np.zeros(shape=features[0].shape)
+        for i in range(features.shape[0]):
+            sum_i = sum(features[i])
+            for j in range(features.shape[1]):
+                tf[i][j] = features[i][j]/sum_i
+                idf[j] = idf[j] + (features[i][j] != 0)
+        idf = features.shape[0] / (idf + 1)
+        features_tf_idf = tf * idf
+        # np.save('features_tf_idf', features_tf_idf)
+        # print(tf)
+        # print(idf)
+        return features_tf_idf
 
     # def preprocess(self):
     #     im = cv2.imread(self.impath)
